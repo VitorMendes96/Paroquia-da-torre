@@ -365,6 +365,17 @@
             color: var(--primary);
         }
 
+        #login-error {
+            background-color: #FDEDEC;
+            color: #E74C3C;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #FADBD8;
+            margin-top: 15px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
@@ -409,9 +420,9 @@
                 <div class="form-group">
                     <input type="password" id="login-pass" placeholder="Senha" required>
                 </div>
-                <button type="submit" class="btn-primary" style="width: 100%;">Entrar no Sistema</button>
+                <button type="submit" id="btn-login-submit" class="btn-primary" style="width: 100%;">Entrar no Sistema</button>
             </form>
-            <p id="login-error" style="color: #E74C3C; margin-top: 15px; font-size: 0.85rem;" class="hidden"></p>
+            <p id="login-error" class="hidden"></p>
         </div>
     </div>
 
@@ -548,9 +559,12 @@
     </div>
 
     <script>
-        // CONFIGURAÇÕES DO SUPABASE
-        const SUPABASE_URL = https:'//lhcysivcgllpayoqover.supabase.co/rest/v1/';
-        const SUPABASE_ANON_KEY = 'sb_secret_umA7w0SqmJnU00RdYZ66Pg_vEtH8_km'; // Copie a chave 'anon public' (eyJ...) do painel do Supabase
+        // =========================================================================
+        // CONFIGURAÇÕES DO SUPABASE - PREENCHA ABAIXO COM SEUS DADOS DO PAINEL
+        // =========================================================================
+        const SUPABASE_URL = 'https://COLE_AQUI_SEU_PROJECT_URL.supabase.co';
+        const SUPABASE_ANON_KEY = 'COLE_AQUI_SUA_CHAVE_ANON_PUBLIC';
+        // =========================================================================
 
         const { createClient } = window.supabase;
         const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -564,35 +578,52 @@
         const appScreen = document.getElementById('app');
         const loginForm = document.getElementById('login-form');
         const loginError = document.getElementById('login-error');
+        const btnLoginSubmit = document.getElementById('btn-login-submit');
         const displayUserName = document.getElementById('display-user-name');
         const menuNav = document.getElementById('menu-nav');
         const btnLogout = document.getElementById('btn-logout');
 
-        // Autenticação
+        // Autenticação com Tratamento Visual de Erros
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const email = document.getElementById('login-user').value;
+            
+            btnLoginSubmit.disabled = true;
+            btnLoginSubmit.innerText = 'Autenticando...';
+            loginError.classList.add('hidden');
+
+            const email = document.getElementById('login-user').value.trim();
             const password = document.getElementById('login-pass').value;
 
             try {
                 const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
                 if (error) {
-                    loginError.innerText = 'E-mail ou senha incorretos.';
-                    loginError.classList.remove('hidden');
+                    if (error.message.includes('Invalid login credentials')) {
+                        showLoginError('E-mail ou senha incorretos.');
+                    } else if (error.message.includes('Email not confirmed')) {
+                        showLoginError('E-mail não confirmado no Supabase.');
+                    } else {
+                        showLoginError(`Erro de Login: ${error.message}`);
+                    }
                     return;
                 }
 
                 currentUser = data.user;
                 await loadUserProfile();
-                loginError.classList.add('hidden');
                 loginForm.reset();
                 initApp();
             } catch (err) {
-                loginError.innerText = 'Falha de conexão com o Supabase.';
-                loginError.classList.remove('hidden');
+                showLoginError('Não foi possível conectar ao banco de dados. Verifique a URL e a Chave no código.');
+            } finally {
+                btnLoginSubmit.disabled = false;
+                btnLoginSubmit.innerText = 'Entrar no Sistema';
             }
         });
+
+        function showLoginError(msg) {
+            loginError.innerText = msg;
+            loginError.classList.remove('hidden');
+        }
 
         btnLogout.addEventListener('click', async () => {
             await supabase.auth.signOut();
@@ -603,11 +634,15 @@
         });
 
         async function loadUserProfile() {
-            const { data } = await supabase
+            const { data, error } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', currentUser.id)
                 .maybeSingle();
+
+            if (error) {
+                console.error('Erro ao buscar perfil:', error);
+            }
 
             userProfile = data || { username: currentUser.email, role: 'user' };
         }
@@ -646,7 +681,7 @@
             });
         };
 
-        // Envio para o Banco de Dados + Storage
+        // Envio de Solicitação (Upload + DB)
         document.getElementById('expense-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btnSubmit = document.getElementById('btn-submit-expense');
@@ -699,26 +734,30 @@
             }
         });
 
-        // Leitura de Despesas em Tempo Real
+        // Carregar Solicitações do Banco de Dados
         async function renderExpenses() {
             const userHistoryContainer = document.getElementById('user-history-cards');
             userHistoryContainer.innerHTML = '';
 
             if (userProfile.role === 'user') {
-                const { data: myExpenses } = await supabase
+                const { data: myExpenses, error } = await supabase
                     .from('expenses')
                     .select('*')
                     .eq('user_id', currentUser.id)
                     .order('created_at', { ascending: false });
 
+                if (error) console.error('Erro ao buscar minhas despesas:', error);
+
                 (myExpenses || []).forEach(exp => {
                     userHistoryContainer.innerHTML += createCardHTML(exp);
                 });
             } else {
-                const { data: allExpenses } = await supabase
+                const { data: allExpenses, error } = await supabase
                     .from('expenses')
                     .select('*')
                     .order('created_at', { ascending: false });
+
+                if (error) console.error('Erro ao buscar todas as despesas:', error);
 
                 allReceivedExpenses = allExpenses || [];
                 displayAdminExpenses(allReceivedExpenses);
@@ -767,7 +806,7 @@
             `;
         }
 
-        // Cadastro de novos usuários pelo Admin
+        // Cadastrar Novo Usuário
         document.getElementById('create-user-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('new-email').value;
@@ -802,7 +841,9 @@
             const tbody = document.getElementById('users-table-body');
             tbody.innerHTML = '';
 
-            const { data: profiles } = await supabase.from('profiles').select('*');
+            const { data: profiles, error } = await supabase.from('profiles').select('*');
+            if (error) console.error('Erro ao buscar usuários:', error);
+
             (profiles || []).forEach(u => {
                 tbody.innerHTML += `<tr><td><strong>${u.username}</strong></td><td>${u.role === 'admin' ? 'Gestor' : 'Padrão'}</td></tr>`;
             });
