@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prestação de Contas - Paróquia da Torre</title>
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary: #0F2027;
+            --primary-light: #203A43;
+            --accent: #D4AF37;
+            --bg: #F4F6F9;
+            --card-bg: #FFFFFF;
+            --text-main: #2C3E50;
+            --text-muted: #7F8C8D;
+            --border: #E2E8F0;
+            --success: #27AE60;
+            --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .logo-icon {
+            width: 42px;
+            height: 42px;
+            flex-shrink: 0;
+        }
+
+        .logo-text {
+            display: flex;
+            flex-direction: column;
+            text-align: left;
+            line-height: 1.1;
+        }
+
+        .logo-text .sub {
+            font-size: 0.65rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .logo-text .main {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #FFFFFF;
+            letter-spacing: 0.5px;
+        }
+
+        #app {
+            display: flex;
+            width: 100%;
+            min-height: 100vh;
+        }
+
+        aside {
+            width: 270px;
+            background: linear-gradient(180deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: #fff;
+            padding: 25px 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.05);
+        }
+
+        .brand-wrapper {
+            margin-bottom: 35px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        nav button {
+            width: 100%;
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.8);
+            padding: 14px 18px;
+            text-align: left;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.25s ease;
+        }
+
+        nav button:hover, nav button.active {
+            background-color: rgba(212, 175, 55, 0.15);
+            color: var(--accent);
+            transform: translateX(4px);
+        }
+
+        .user-info {
+            font-size: 0.85rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 20px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .user-info strong {
+            color: #FFF;
+            display: block;
+            margin-top: 3px;
+            font-size: 0.95rem;
+        }
+
+        .btn-logout {
+            background: rgba(211, 47, 47, 0.2);
+            color: #FF8A80;
+            border: 1px solid rgba(211, 47, 47, 0.4);
+            padding: 10px;
+            width: 100%;
+            border-radius: 6px;
+            margin-top: 15px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .btn-logout:hover {
+            background: #D32F2F;
+            color: #FFF;
+        }
+
+        main {
+            flex: 1;
+            padding: 35px;
+            overflow-y: auto;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: var(--shadow);
+            margin-bottom: 25px;
+            border: 1px solid var(--border);
+        }
+
+        h2 {
+            margin-bottom: 22px;
+            color: var(--primary);
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 18px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 0.88rem;
+            color: var(--text-main);
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            background-color: #FAFAFA;
+            transition: all 0.2s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            background-color: #FFF;
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2);
+        }
+
+        button.btn-primary {
+            background: var(--primary);
+            color: #FFF;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 10px rgba(15, 32, 39, 0.15);
+        }
+
+        button.btn-primary:hover {
+            background: var(--primary-light);
+            transform: translateY(-1px);
+        }
+
+        .search-box {
+            position: relative;
+            margin-bottom: 25px;
+        }
+
+        .search-box input {
+            padding-left: 45px;
+            height: 50px;
+            font-size: 1rem;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            background-color: #FFF;
+        }
+
+        .search-box svg {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            fill: var(--text-muted);
+            width: 20px;
+            height: 20px;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 22px;
+        }
+
+        .request-card {
+            background: #FFF;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .request-card header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #F0F4F8;
+        }
+
+        .request-card .pastoral-tag {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 1rem;
+        }
+
+        .request-card .date-tag {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            background: #F1F5F9;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        .request-card .user-badge {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+
+        .request-card .user-badge strong {
+            color: var(--primary);
+        }
+
+        .request-card .value {
+            font-size: 1.4rem;
+            color: var(--success);
+            font-weight: 800;
+            margin: 8px 0;
+        }
+
+        .request-card .desc {
+            font-size: 0.9rem;
+            color: #555;
+            line-height: 1.4;
+            margin-bottom: 15px;
+            background: #F8FAFC;
+            padding: 10px;
+            border-radius: 6px;
+        }
+
+        .btn-attachment {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 10px;
+            background-color: rgba(212, 175, 55, 0.12);
+            color: #8A6D0B;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            font-weight: 700;
+        }
+
+        #login-screen {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+        }
+
+        .login-box {
+            background: #FFF;
+            padding: 45px 35px;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .login-box .logo-container {
+            margin-bottom: 25px;
+        }
+
+        .login-box .logo-text .main {
+            color: var(--primary);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        table th, table td {
+            border: 1px solid var(--border);
+            padding: 12px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        table th {
+            background-color: #F8FAFC;
+            color: var(--primary);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- TELA DE LOGIN -->
+    <div id="login-screen">
+        <div class="login-box">
+            <div class="logo-container">
+                <svg class="logo-icon" viewBox="0 0 100 100">
+                    <path d="M50 10 L50 85 M25 32 L75 32" stroke="#D4AF37" stroke-width="8" stroke-linecap="round"/>
+                    <path d="M20 85 L50 55 L80 85" fill="none" stroke="#0F2027" stroke-width="6" stroke-linecap="round"/>
+                </svg>
+                <div class="logo-text">
+                    <span class="sub">Paróquia da</span>
+                    <span class="main">TORRE</span>
+                </div>
+            </div>
+
+            <p style="margin-bottom: 25px; color: var(--text-muted); font-size: 0.9rem;">Sistema de Prestação de Contas</p>
+
+            <form id="login-form">
+                <div class="form-group">
+                    <input type="email" id="login-user" placeholder="E-mail cadastrado" required>
+                </div>
+                <div class="form-group">
+                    <input type="password" id="login-pass" placeholder="Senha" required>
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%;">Entrar no Sistema</button>
+            </form>
+            <p id="login-error" style="color: #E74C3C; margin-top: 15px; font-size: 0.85rem;" class="hidden"></p>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="app" class="hidden">
+        <aside>
+            <div>
+                <div class="brand-wrapper">
+                    <div class="logo-container">
+                        <svg class="logo-icon" viewBox="0 0 100 100">
+                            <path d="M50 10 L50 85 M25 32 L75 32" stroke="#D4AF37" stroke-width="8" stroke-linecap="round"/>
+                            <path d="M20 85 L50 55 L80 85" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"/>
+                        </svg>
+                        <div class="logo-text">
+                            <span class="sub">Paróquia da</span>
+                            <span class="main">TORRE</span>
+                        </div>
+                    </div>
+                </div>
+                <nav id="menu-nav"></nav>
+            </div>
+            <div class="user-info">
+                <span>Conectado como:</span>
+                <strong id="display-user-name">-</strong>
+                <button class="btn-logout" id="btn-logout">Sair do Sistema</button>
+            </div>
+        </aside>
+
+        <main>
+            <!-- TELA 1: ENVIO (SOLICITANTE) -->
+            <section id="screen-submit" class="screen-content hidden">
+                <div class="card">
+                    <h2>Nova Prestação de Contas</h2>
+                    <form id="expense-form">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="pastoral">Pastoral / Setor *</label>
+                                <select id="pastoral" required>
+                                    <option value="" disabled selected>Selecione a pastoral...</option>
+                                    <option value="ECC">ECC</option>
+                                    <option value="PASTORAL DA FAMILIA">PASTORAL DA FAMILIA</option>
+                                    <option value="EJC">EJC</option>
+                                    <option value="CATEQUESE">CATEQUESE</option>
+                                    <option value="SECRETARIA">SECRETARIA</option>
+                                    <option value="PASCOM">PASCOM</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="date">Data da Despesa *</label>
+                                <input type="date" id="date" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="value">Valor (R$) *</label>
+                                <input type="number" id="value" step="0.01" placeholder="0,00" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label for="description">Descrição do Pagamento / Comprovante *</label>
+                            <textarea id="description" rows="3" placeholder="Informe o motivo do pagamento, fornecedor ou detalhes adicionais..." required></textarea>
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label for="attachment">Anexo (Comprovante em Imagem, PDF ou Word) *</label>
+                            <input type="file" id="attachment" accept="image/*,.pdf,.doc,.docx" required>
+                        </div>
+
+                        <button type="submit" id="btn-submit-expense" class="btn-primary">Enviar para Análise</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h2>Minhas Solicitações Enviadas</h2>
+                    <div id="user-history-cards" class="cards-grid"></div>
+                </div>
+            </section>
+
+            <!-- TELA 2: RECEBIDOS COM BUSCA (GESTOR/ADMIN) -->
+            <section id="screen-receive" class="screen-content hidden">
+                <h2>Prestações Recebidas</h2>
+
+                <div class="search-box">
+                    <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                    <input type="text" id="search-input" placeholder="Pesquisar por solicitante, pastoral ou descrição..." onkeyup="filterExpenses()">
+                </div>
+
+                <div id="admin-cards" class="cards-grid"></div>
+            </section>
+
+            <!-- TELA 3: CONFIGURAÇÕES (ADMIN) -->
+            <section id="screen-settings" class="screen-content hidden">
+                <div class="card">
+                    <h2>Cadastrar Novo Usuário</h2>
+                    <form id="create-user-form">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>E-mail institucional</label>
+                                <input type="email" id="new-email" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Nome do Usuário / Pastoral</label>
+                                <input type="text" id="new-username" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Senha de Acesso</label>
+                                <input type="password" id="new-password" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Nível de Acesso</label>
+                                <select id="new-role">
+                                    <option value="user">Usuário Padrão (Solicitante)</option>
+                                    <option value="admin">Gestor (Admin)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-primary">Criar Usuário</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h2>Usuários do Sistema</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nome / Identificação</th>
+                                <th>Nível de Acesso</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table-body"></tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // CONFIGURAÇÕES DO SUPABASE
+        const SUPABASE_URL = 'https://ybwftqwmaeanjylrzjrv.supabase.co';
+        const SUPABASE_ANON_KEY = 'SUA_ANON_KEY'; // Copie a chave 'anon public' (eyJ...) do painel do Supabase
+
+        const { createClient } = window.supabase;
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let currentUser = null;
+        let userProfile = null;
+        let allReceivedExpenses = [];
+
+        // DOM Elements
+        const loginScreen = document.getElementById('login-screen');
+        const appScreen = document.getElementById('app');
+        const loginForm = document.getElementById('login-form');
+        const loginError = document.getElementById('login-error');
+        const displayUserName = document.getElementById('display-user-name');
+        const menuNav = document.getElementById('menu-nav');
+        const btnLogout = document.getElementById('btn-logout');
+
+        // Autenticação
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-user').value;
+            const password = document.getElementById('login-pass').value;
+
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+                if (error) {
+                    loginError.innerText = 'E-mail ou senha incorretos.';
+                    loginError.classList.remove('hidden');
+                    return;
+                }
+
+                currentUser = data.user;
+                await loadUserProfile();
+                loginError.classList.add('hidden');
+                loginForm.reset();
+                initApp();
+            } catch (err) {
+                loginError.innerText = 'Falha de conexão com o Supabase.';
+                loginError.classList.remove('hidden');
+            }
+        });
+
+        btnLogout.addEventListener('click', async () => {
+            await supabase.auth.signOut();
+            currentUser = null;
+            userProfile = null;
+            appScreen.classList.add('hidden');
+            loginScreen.classList.remove('hidden');
+        });
+
+        async function loadUserProfile() {
+            const { data } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', currentUser.id)
+                .maybeSingle();
+
+            userProfile = data || { username: currentUser.email, role: 'user' };
+        }
+
+        async function initApp() {
+            loginScreen.classList.add('hidden');
+            appScreen.classList.remove('hidden');
+            displayUserName.innerText = `${userProfile.username} (${userProfile.role === 'admin' ? 'Gestor' : 'Padrão'})`;
+
+            setupMenu();
+            await renderExpenses();
+            if (userProfile.role === 'admin') await renderUsers();
+        }
+
+        function setupMenu() {
+            menuNav.innerHTML = '';
+            if (userProfile.role === 'user') {
+                menuNav.innerHTML += `<button onclick="showScreen('screen-submit')" class="active">Solicitar / Histórico</button>`;
+                showScreen('screen-submit');
+            } else {
+                menuNav.innerHTML += `
+                    <button onclick="showScreen('screen-receive')" class="active">Recebidos</button>
+                    <button onclick="showScreen('screen-settings')">Configurações</button>
+                `;
+                showScreen('screen-receive');
+            }
+        }
+
+        window.showScreen = function(screenId) {
+            document.querySelectorAll('.screen-content').forEach(s => s.classList.add('hidden'));
+            document.getElementById(screenId).classList.remove('hidden');
+            const buttons = menuNav.querySelectorAll('button');
+            buttons.forEach(btn => {
+                if (btn.getAttribute('onclick').includes(screenId)) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+        };
+
+        // Envio para o Banco de Dados + Storage
+        document.getElementById('expense-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btnSubmit = document.getElementById('btn-submit-expense');
+            btnSubmit.disabled = true;
+            btnSubmit.innerText = 'Enviando...';
+
+            const fileInput = document.getElementById('attachment');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Selecione um comprovante.');
+                btnSubmit.disabled = false;
+                btnSubmit.innerText = 'Enviar para Análise';
+                return;
+            }
+
+            try {
+                const fileName = `${Date.now()}_${file.name}`;
+                const { error: storageError } = await supabase.storage
+                    .from('comprovantes')
+                    .upload(fileName, file);
+
+                if (storageError) throw storageError;
+
+                const { data: publicUrlData } = supabase.storage
+                    .from('comprovantes')
+                    .getPublicUrl(fileName);
+
+                const { error: dbError } = await supabase.from('expenses').insert([{
+                    user_id: currentUser.id,
+                    username: userProfile.username,
+                    pastoral: document.getElementById('pastoral').value,
+                    expense_date: document.getElementById('date').value,
+                    amount: parseFloat(document.getElementById('value').value),
+                    description: document.getElementById('description').value,
+                    file_url: publicUrlData.publicUrl,
+                    file_name: file.name
+                }]);
+
+                if (dbError) throw dbError;
+
+                alert('Prestação enviada com sucesso!');
+                document.getElementById('expense-form').reset();
+                await renderExpenses();
+            } catch (err) {
+                alert('Erro ao enviar: ' + err.message);
+            } finally {
+                btnSubmit.disabled = false;
+                btnSubmit.innerText = 'Enviar para Análise';
+            }
+        });
+
+        // Leitura de Despesas em Tempo Real
+        async function renderExpenses() {
+            const userHistoryContainer = document.getElementById('user-history-cards');
+            userHistoryContainer.innerHTML = '';
+
+            if (userProfile.role === 'user') {
+                const { data: myExpenses } = await supabase
+                    .from('expenses')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('created_at', { ascending: false });
+
+                (myExpenses || []).forEach(exp => {
+                    userHistoryContainer.innerHTML += createCardHTML(exp);
+                });
+            } else {
+                const { data: allExpenses } = await supabase
+                    .from('expenses')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                allReceivedExpenses = allExpenses || [];
+                displayAdminExpenses(allReceivedExpenses);
+            }
+        }
+
+        function displayAdminExpenses(expensesList) {
+            const adminCardsContainer = document.getElementById('admin-cards');
+            adminCardsContainer.innerHTML = '';
+            if (expensesList.length === 0) {
+                adminCardsContainer.innerHTML = '<p style="color:var(--text-muted); grid-column:1/-1;">Nenhum registro encontrado.</p>';
+                return;
+            }
+            expensesList.forEach(exp => {
+                adminCardsContainer.innerHTML += createCardHTML(exp, true);
+            });
+        }
+
+        function filterExpenses() {
+            const term = document.getElementById('search-input').value.toLowerCase();
+            const filtered = allReceivedExpenses.filter(exp => 
+                (exp.username && exp.username.toLowerCase().includes(term)) ||
+                (exp.pastoral && exp.pastoral.toLowerCase().includes(term)) ||
+                (exp.description && exp.description.toLowerCase().includes(term))
+            );
+            displayAdminExpenses(filtered);
+        }
+
+        function createCardHTML(exp, showUser = false) {
+            const dateFmt = exp.expense_date ? exp.expense_date.split('-').reverse().join('/') : '';
+            return `
+                <div class="request-card">
+                    <div>
+                        <header>
+                            <span class="pastoral-tag">${exp.pastoral}</span>
+                            <span class="date-tag">${dateFmt}</span>
+                        </header>
+                        ${showUser ? `<div class="user-badge">Solicitante: <strong>${exp.username}</strong></div>` : ''}
+                        <div class="value">R$ ${parseFloat(exp.amount).toFixed(2)}</div>
+                        <div class="desc">${exp.description}</div>
+                    </div>
+                    <a href="${exp.file_url}" target="_blank" class="btn-attachment">
+                        📎 Visualizar Anexo (${exp.file_name})
+                    </a>
+                </div>
+            `;
+        }
+
+        // Cadastro de novos usuários pelo Admin
+        document.getElementById('create-user-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('new-email').value;
+            const username = document.getElementById('new-username').value;
+            const password = document.getElementById('new-password').value;
+            const role = document.getElementById('new-role').value;
+
+            const { data, error } = await supabase.auth.signUp({
+                email,
+                password,
+                options: { data: { username, role } }
+            });
+
+            if (error) {
+                alert('Erro ao cadastrar: ' + error.message);
+                return;
+            }
+
+            if (data.user) {
+                await supabase.from('profiles').insert([{
+                    id: data.user.id,
+                    username,
+                    role
+                }]);
+                alert('Usuário cadastrado com sucesso!');
+                document.getElementById('create-user-form').reset();
+                await renderUsers();
+            }
+        });
+
+        async function renderUsers() {
+            const tbody = document.getElementById('users-table-body');
+            tbody.innerHTML = '';
+
+            const { data: profiles } = await supabase.from('profiles').select('*');
+            (profiles || []).forEach(u => {
+                tbody.innerHTML += `<tr><td><strong>${u.username}</strong></td><td>${u.role === 'admin' ? 'Gestor' : 'Padrão'}</td></tr>`;
+            });
+        }
+    </script>
+</body>
+</html>
