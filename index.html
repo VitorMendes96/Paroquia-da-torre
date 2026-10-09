@@ -415,12 +415,12 @@
             <p style="margin-bottom: 25px; color: var(--text-muted); font-size: 0.9rem;">Sistema de Prestação de Contas</p>
 
             <div class="form-group">
-                <input type="text" id="login-user" placeholder="E-mail cadastrado" onkeydown="if(event.key==='Enter') executeLogin()">
+                <input type="text" id="login-user" placeholder="E-mail cadastrado">
             </div>
             <div class="form-group">
-                <input type="password" id="login-pass" placeholder="Senha" onkeydown="if(event.key==='Enter') executeLogin()">
+                <input type="password" id="login-pass" placeholder="Senha">
             </div>
-            <button type="button" id="btn-login-submit" onclick="executeLogin()" class="btn-primary" style="width: 100%;">Entrar no Sistema</button>
+            <button type="button" id="btn-login-submit" class="btn-primary" style="width: 100%;">Entrar no Sistema</button>
 
             <p id="login-error" class="hidden"></p>
         </div>
@@ -592,8 +592,8 @@
         const menuNav = document.getElementById('menu-nav');
         const btnLogout = document.getElementById('btn-logout');
 
-        // FUNÇÃO DE LOGIN
-        async function executeLogin() {
+        // FUNÇÃO DE LOGIN DEFINIDA ANTES DE TUDO
+        window.executeLogin = async function() {
             const emailInput = document.getElementById('login-user');
             const passInput = document.getElementById('login-pass');
 
@@ -647,7 +647,23 @@
                 btnLoginSubmit.disabled = false;
                 btnLoginSubmit.innerText = 'Entrar no Sistema';
             }
-        }
+        };
+
+        // ASSOCIA OS EVENTOS VIA JAVASCRIPT
+        document.addEventListener('DOMContentLoaded', () => {
+            if (btnLoginSubmit) {
+                btnLoginSubmit.addEventListener('click', window.executeLogin);
+            }
+
+            const inputs = [document.getElementById('login-user'), document.getElementById('login-pass')];
+            inputs.forEach(input => {
+                if (input) {
+                    input.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') window.executeLogin();
+                    });
+                }
+            });
+        });
 
         function showLoginError(msg) {
             loginError.innerText = msg;
