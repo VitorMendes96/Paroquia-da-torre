@@ -416,7 +416,7 @@
 
             <form id="login-form">
                 <div class="form-group">
-                    <input type="text" id="login-user" placeholder="E-mail cadastrado (ex: admin@hotmail.com)" required>
+                    <input type="text" id="login-user" placeholder="E-mail cadastrado" required>
                 </div>
                 <div class="form-group">
                     <input type="password" id="login-pass" placeholder="Senha" required>
@@ -560,9 +560,12 @@
     </div>
 
     <script>
-        // CONFIGURAÇÕES DO SUPABASE - PREENCHA COM SUAS CHAVES REAIS
+        // =========================================================================
+        // SUPABASE CONFIGURATION - Substitua SUA_CHAVE_ANON_PUBLIC pela sua chave do Supabase
+        // =========================================================================
         const SUPABASE_URL = 'https://lhcysivcgllpayoqover.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_5XxUgZqEtPXsKJhkeXqT0w_Ap2MBxUw';
+        const SUPABASE_ANON_KEY = 'SUA_CHAVE_ANON_PUBLIC_AQUI_COMECA_COM_eyJ';
+        // =========================================================================
 
         let supabase = null;
 
@@ -572,7 +575,7 @@
                 supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             }
         } catch (err) {
-            console.error('Erro ao conectar ao Supabase:', err);
+            console.error('Erro ao conectar com o Supabase:', err);
         }
 
         let currentUser = null;
@@ -589,9 +592,10 @@
         const menuNav = document.getElementById('menu-nav');
         const btnLogout = document.getElementById('btn-logout');
 
-        // Evento do Formulário de Login
+        // PREVINE O REFRESH E TRATA O LOGIN
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            e.stopPropagation();
 
             const emailInput = document.getElementById('login-user');
             const passInput = document.getElementById('login-pass');
@@ -599,15 +603,19 @@
             const email = emailInput.value.trim();
             const password = passInput.value;
 
-            // Validação simples de formato de e-mail
+            if (!email || !password) {
+                showLoginError('Por favor, informe o e-mail e a senha.');
+                return false;
+            }
+
             if (!email.includes('@') || !email.includes('.')) {
-                showLoginError('Por favor, digite um e-mail válido com "@" e ".". Exemplo: admin@hotmail.com');
-                return;
+                showLoginError('Formato de e-mail inválido. Exemplo correto: admin@hotmail.com');
+                return false;
             }
 
             if (SUPABASE_ANON_KEY.includes('SUA_CHAVE_ANON_PUBLIC')) {
-                showLoginError('Atenção: Você precisa colar sua chave ANON PUBLIC do Supabase na linha 255 do código!');
-                return;
+                showLoginError('ATENÇÃO: Cole a sua chave ANON PUBLIC do Supabase na linha 256 do código.');
+                return false;
             }
 
             btnLoginSubmit.disabled = true;
@@ -621,11 +629,11 @@
                     if (error.message.includes('Invalid login credentials')) {
                         showLoginError('E-mail ou senha incorretos.');
                     } else if (error.message.includes('Email not confirmed')) {
-                        showLoginError('E-mail não foi confirmado no painel do Supabase.');
+                        showLoginError('E-mail não confirmado no painel do Supabase.');
                     } else {
-                        showLoginError(`Erro no Supabase: ${error.message}`);
+                        showLoginError(`Erro: ${error.message}`);
                     }
-                    return;
+                    return false;
                 }
 
                 currentUser = data.user;
@@ -633,11 +641,13 @@
                 loginForm.reset();
                 initApp();
             } catch (err) {
-                showLoginError('Erro ao comunicar com o Supabase. Verifique a chave configurada no código.');
+                showLoginError('Erro ao comunicar com o servidor. Verifique se as chaves do Supabase estão corretas.');
             } finally {
                 btnLoginSubmit.disabled = false;
                 btnLoginSubmit.innerText = 'Entrar no Sistema';
             }
+
+            return false;
         });
 
         function showLoginError(msg) {
