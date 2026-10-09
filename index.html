@@ -414,15 +414,14 @@
 
             <p style="margin-bottom: 25px; color: var(--text-muted); font-size: 0.9rem;">Sistema de Prestação de Contas</p>
 
-            <form id="login-form">
-                <div class="form-group">
-                    <input type="text" id="login-user" placeholder="E-mail cadastrado" required>
-                </div>
-                <div class="form-group">
-                    <input type="password" id="login-pass" placeholder="Senha" required>
-                </div>
-                <button type="submit" id="btn-login-submit" class="btn-primary" style="width: 100%;">Entrar no Sistema</button>
-            </form>
+            <div class="form-group">
+                <input type="text" id="login-user" placeholder="E-mail cadastrado" onkeydown="if(event.key==='Enter') executeLogin()">
+            </div>
+            <div class="form-group">
+                <input type="password" id="login-pass" placeholder="Senha" onkeydown="if(event.key==='Enter') executeLogin()">
+            </div>
+            <button type="button" id="btn-login-submit" onclick="executeLogin()" class="btn-primary" style="width: 100%;">Entrar no Sistema</button>
+
             <p id="login-error" class="hidden"></p>
         </div>
     </div>
@@ -561,7 +560,7 @@
 
     <script>
         // =========================================================================
-        // SUPABASE CONFIGURATION - Substitua SUA_CHAVE_ANON_PUBLIC pela sua chave do Supabase
+        // CONFIGURAÇÃO DO SUPABASE
         // =========================================================================
         const SUPABASE_URL = 'https://lhcysivcgllpayoqover.supabase.co';
         const SUPABASE_ANON_KEY = 'SUA_CHAVE_ANON_PUBLIC_AQUI_COMECA_COM_eyJ';
@@ -573,9 +572,11 @@
             if (window.supabase) {
                 const { createClient } = window.supabase;
                 supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            } else {
+                console.error('A biblioteca do Supabase não foi carregada via CDN.');
             }
         } catch (err) {
-            console.error('Erro ao conectar com o Supabase:', err);
+            console.error('Erro ao inicializar o cliente Supabase:', err);
         }
 
         let currentUser = null;
@@ -585,18 +586,14 @@
         // DOM Elements
         const loginScreen = document.getElementById('login-screen');
         const appScreen = document.getElementById('app');
-        const loginForm = document.getElementById('login-form');
         const loginError = document.getElementById('login-error');
         const btnLoginSubmit = document.getElementById('btn-login-submit');
         const displayUserName = document.getElementById('display-user-name');
         const menuNav = document.getElementById('menu-nav');
         const btnLogout = document.getElementById('btn-logout');
 
-        // PREVINE O REFRESH E TRATA O LOGIN
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-
+        // FUNÇÃO DE LOGIN
+        async function executeLogin() {
             const emailInput = document.getElementById('login-user');
             const passInput = document.getElementById('login-pass');
 
@@ -605,17 +602,22 @@
 
             if (!email || !password) {
                 showLoginError('Por favor, informe o e-mail e a senha.');
-                return false;
+                return;
             }
 
             if (!email.includes('@') || !email.includes('.')) {
                 showLoginError('Formato de e-mail inválido. Exemplo correto: admin@hotmail.com');
-                return false;
+                return;
             }
 
             if (SUPABASE_ANON_KEY.includes('SUA_CHAVE_ANON_PUBLIC')) {
-                showLoginError('ATENÇÃO: Cole a sua chave ANON PUBLIC do Supabase na linha 256 do código.');
-                return false;
+                showLoginError('ERRO DE CONFIGURAÇÃO: Cole a sua chave ANON PUBLIC do Supabase na constante SUPABASE_ANON_KEY.');
+                return;
+            }
+
+            if (!supabase) {
+                showLoginError('Erro: O SDK do Supabase não pôde ser carregado. Verifique sua conexão.');
+                return;
             }
 
             btnLoginSubmit.disabled = true;
@@ -631,24 +633,21 @@
                     } else if (error.message.includes('Email not confirmed')) {
                         showLoginError('E-mail não confirmado no painel do Supabase.');
                     } else {
-                        showLoginError(`Erro: ${error.message}`);
+                        showLoginError(`Erro do Supabase: ${error.message}`);
                     }
-                    return false;
+                    return;
                 }
 
                 currentUser = data.user;
                 await loadUserProfile();
-                loginForm.reset();
                 initApp();
             } catch (err) {
-                showLoginError('Erro ao comunicar com o servidor. Verifique se as chaves do Supabase estão corretas.');
+                showLoginError('Falha ao comunicar com o servidor. Verifique suas chaves no código.');
             } finally {
                 btnLoginSubmit.disabled = false;
                 btnLoginSubmit.innerText = 'Entrar no Sistema';
             }
-
-            return false;
-        });
+        }
 
         function showLoginError(msg) {
             loginError.innerText = msg;
