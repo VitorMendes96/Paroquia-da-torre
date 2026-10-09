@@ -368,12 +368,13 @@
         #login-error {
             background-color: #FDEDEC;
             color: #E74C3C;
-            padding: 10px;
-            border-radius: 6px;
+            padding: 12px;
+            border-radius: 8px;
             border: 1px solid #FADBD8;
             margin-top: 15px;
             font-size: 0.85rem;
             font-weight: 600;
+            word-break: break-word;
         }
 
         table {
@@ -413,14 +414,15 @@
 
             <p style="margin-bottom: 25px; color: var(--text-muted); font-size: 0.9rem;">Sistema de Prestação de Contas</p>
 
-            <form id="login-form">
+            <form id="login-form" onsubmit="return false;">
                 <div class="form-group">
                     <input type="email" id="login-user" placeholder="E-mail cadastrado" required>
                 </div>
                 <div class="form-group">
                     <input type="password" id="login-pass" placeholder="Senha" required>
                 </div>
-                <button type="submit" id="btn-login-submit" class="btn-primary" style="width: 100%;">Entrar no Sistema</button>
+                <!-- Botão alterado para do tipo button para impedir o recarregamento do formulário -->
+                <button type="button" id="btn-login-submit" onclick="handleLogin()" class="btn-primary" style="width: 100%;">Entrar no Sistema</button>
             </form>
             <p id="login-error" class="hidden"></p>
         </div>
@@ -560,14 +562,25 @@
 
     <script>
         // =========================================================================
-        // CONFIGURAÇÕES DO SUPABASE - PREENCHA ABAIXO COM SEUS DADOS DO PAINEL
+        // CONFIGURAÇÕES DO SUPABASE (COLE AS SUAS CREDENCIAIS REAIS AQUI)
         // =========================================================================
         const SUPABASE_URL = 'https://lhcysivcgllpayoqover.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_5XxUgZqEtPXsKJhkeXqT0w_Ap2MBxUw';
         // =========================================================================
 
-        const { createClient } = window.supabase;
-        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let supabase = null;
+
+        // Inicialização com Verificação
+        try {
+            if (window.supabase) {
+                const { createClient } = window.supabase;
+                supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            } else {
+                console.error('Biblioteca do Supabase não carregou do CDN.');
+            }
+        } catch (err) {
+            console.error('Erro ao inicializar cliente Supabase:', err);
+        }
 
         let currentUser = null;
         let userProfile = null;
@@ -576,49 +589,66 @@
         // DOM Elements
         const loginScreen = document.getElementById('login-screen');
         const appScreen = document.getElementById('app');
-        const loginForm = document.getElementById('login-form');
         const loginError = document.getElementById('login-error');
         const btnLoginSubmit = document.getElementById('btn-login-submit');
         const displayUserName = document.getElementById('display-user-name');
         const menuNav = document.getElementById('menu-nav');
         const btnLogout = document.getElementById('btn-logout');
 
-        // Autenticação com Tratamento Visual de Erros
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
+        // Função do Login via Ação do Botão (Sem Submit do Form)
+        async function handleLogin() {
+            const emailInput = document.getElementById('login-user');
+            const passInput = document.getElementById('login-pass');
+
+            const email = emailInput.value.trim();
+            const password = passInput.value;
+
+            if (!email || !password) {
+                showLoginError('Por favor, preencha o e-mail e a senha.');
+                return;
+            }
+
+            if (!supabase) {
+                showLoginError('Erro: O cliente do Supabase não foi carregado corretamente. Verifique sua conexão.');
+                return;
+            }
+
             btnLoginSubmit.disabled = true;
             btnLoginSubmit.innerText = 'Autenticando...';
             loginError.classList.add('hidden');
 
-            const email = document.getElementById('login-user').value.trim();
-            const password = document.getElementById('login-pass').value;
-
             try {
+                console.log('Tentando login com:', email);
                 const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
                 if (error) {
+                    console.error('Erro retornado pelo Supabase:', error);
                     if (error.message.includes('Invalid login credentials')) {
                         showLoginError('E-mail ou senha incorretos.');
                     } else if (error.message.includes('Email not confirmed')) {
-                        showLoginError('E-mail não confirmado no Supabase.');
+                        showLoginError('E-mail não foi confirmado no painel do Supabase.');
                     } else {
-                        showLoginError(`Erro de Login: ${error.message}`);
+                        showLoginError(`Erro no Supabase: ${error.message}`);
                     }
                     return;
                 }
 
+                console.log('Login efetuado com sucesso:', data.user);
                 currentUser = data.user;
                 await loadUserProfile();
-                loginForm.reset();
+                
+                emailInput.value = '';
+                passInput.value = '';
+                
                 initApp();
             } catch (err) {
-                showLoginError('Não foi possível conectar ao banco de dados. Verifique a URL e a Chave no código.');
+                console.error('Exceção capturada no login:', err);
+                showLoginError(`Erro de Conexão/Execução: ${err.message || err}`);
             } finally {
                 btnLoginSubmit.disabled = false;
                 btnLoginSubmit.innerText = 'Entrar no Sistema';
             }
-        });
+        }
 
         function showLoginError(msg) {
             loginError.innerText = msg;
@@ -626,7 +656,7 @@
         }
 
         btnLogout.addEventListener('click', async () => {
-            await supabase.auth.signOut();
+            if (supabase) await supabase.auth.signOut();
             currentUser = null;
             userProfile = null;
             appScreen.classList.add('hidden');
@@ -634,17 +664,20 @@
         });
 
         async function loadUserProfile() {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', currentUser.id)
-                .maybeSingle();
+            try {
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', currentUser.id)
+                    .maybeSingle();
 
-            if (error) {
-                console.error('Erro ao buscar perfil:', error);
+                if (error) console.error('Erro ao buscar perfil:', error);
+
+                userProfile = data || { username: currentUser.email, role: 'user' };
+            } catch (e) {
+                console.error('Falha na consulta de perfil:', e);
+                userProfile = { username: currentUser.email, role: 'user' };
             }
-
-            userProfile = data || { username: currentUser.email, role: 'user' };
         }
 
         async function initApp() {
@@ -681,7 +714,7 @@
             });
         };
 
-        // Envio de Solicitação (Upload + DB)
+        // Envio de Solicitação
         document.getElementById('expense-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btnSubmit = document.getElementById('btn-submit-expense');
@@ -734,7 +767,7 @@
             }
         });
 
-        // Carregar Solicitações do Banco de Dados
+        // Carregar Solicitações
         async function renderExpenses() {
             const userHistoryContainer = document.getElementById('user-history-cards');
             userHistoryContainer.innerHTML = '';
@@ -746,7 +779,7 @@
                     .eq('user_id', currentUser.id)
                     .order('created_at', { ascending: false });
 
-                if (error) console.error('Erro ao buscar minhas despesas:', error);
+                if (error) console.error('Erro despesas:', error);
 
                 (myExpenses || []).forEach(exp => {
                     userHistoryContainer.innerHTML += createCardHTML(exp);
@@ -757,7 +790,7 @@
                     .select('*')
                     .order('created_at', { ascending: false });
 
-                if (error) console.error('Erro ao buscar todas as despesas:', error);
+                if (error) console.error('Erro todas despesas:', error);
 
                 allReceivedExpenses = allExpenses || [];
                 displayAdminExpenses(allReceivedExpenses);
