@@ -566,12 +566,11 @@
         const SUPABASE_ANON_KEY = 'SUA_CHAVE_ANON_PUBLIC_AQUI_COMECA_COM_eyJ';
         // =========================================================================
 
-        let supabase = null;
+        let supabaseClient = null;
 
         try {
             if (window.supabase) {
-                const { createClient } = window.supabase;
-                supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             } else {
                 console.error('A biblioteca do Supabase não foi carregada via CDN.');
             }
@@ -592,7 +591,7 @@
         const menuNav = document.getElementById('menu-nav');
         const btnLogout = document.getElementById('btn-logout');
 
-        // FUNÇÃO DE LOGIN DEFINIDA ANTES DE TUDO
+        // FUNÇÃO DE LOGIN
         window.executeLogin = async function() {
             const emailInput = document.getElementById('login-user');
             const passInput = document.getElementById('login-pass');
@@ -611,11 +610,11 @@
             }
 
             if (SUPABASE_ANON_KEY.includes('SUA_CHAVE_ANON_PUBLIC')) {
-                showLoginError('ERRO DE CONFIGURAÇÃO: Cole a sua chave ANON PUBLIC do Supabase na constante SUPABASE_ANON_KEY.');
+                showLoginError('ERRO DE CONFIGURAÇÃO: Cole a sua chave ANON PUBLIC do Supabase na constante SUPABASE_ANON_KEY na linha 250.');
                 return;
             }
 
-            if (!supabase) {
+            if (!supabaseClient) {
                 showLoginError('Erro: O SDK do Supabase não pôde ser carregado. Verifique sua conexão.');
                 return;
             }
@@ -625,7 +624,7 @@
             loginError.classList.add('hidden');
 
             try {
-                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
                 if (error) {
                     if (error.message.includes('Invalid login credentials')) {
@@ -649,7 +648,7 @@
             }
         };
 
-        // ASSOCIA OS EVENTOS VIA JAVASCRIPT
+        // EVENTOS DOM
         document.addEventListener('DOMContentLoaded', () => {
             if (btnLoginSubmit) {
                 btnLoginSubmit.addEventListener('click', window.executeLogin);
@@ -671,7 +670,7 @@
         }
 
         btnLogout.addEventListener('click', async () => {
-            if (supabase) await supabase.auth.signOut();
+            if (supabaseClient) await supabaseClient.auth.signOut();
             currentUser = null;
             userProfile = null;
             appScreen.classList.add('hidden');
@@ -680,7 +679,7 @@
 
         async function loadUserProfile() {
             try {
-                const { data } = await supabase
+                const { data } = await supabaseClient
                     .from('profiles')
                     .select('*')
                     .eq('id', currentUser.id)
@@ -745,17 +744,17 @@
 
             try {
                 const fileName = `${Date.now()}_${file.name}`;
-                const { error: storageError } = await supabase.storage
+                const { error: storageError } = await supabaseClient.storage
                     .from('comprovantes')
                     .upload(fileName, file);
 
                 if (storageError) throw storageError;
 
-                const { data: publicUrlData } = supabase.storage
+                const { data: publicUrlData } = supabaseClient.storage
                     .from('comprovantes')
                     .getPublicUrl(fileName);
 
-                const { error: dbError } = await supabase.from('expenses').insert([{
+                const { error: dbError } = await supabaseClient.from('expenses').insert([{
                     user_id: currentUser.id,
                     username: userProfile.username,
                     pastoral: document.getElementById('pastoral').value,
@@ -785,7 +784,7 @@
             userHistoryContainer.innerHTML = '';
 
             if (userProfile.role === 'user') {
-                const { data: myExpenses } = await supabase
+                const { data: myExpenses } = await supabaseClient
                     .from('expenses')
                     .select('*')
                     .eq('user_id', currentUser.id)
@@ -795,7 +794,7 @@
                     userHistoryContainer.innerHTML += createCardHTML(exp);
                 });
             } else {
-                const { data: allExpenses } = await supabase
+                const { data: allExpenses } = await supabaseClient
                     .from('expenses')
                     .select('*')
                     .order('created_at', { ascending: false });
@@ -855,7 +854,7 @@
             const password = document.getElementById('new-password').value;
             const role = document.getElementById('new-role').value;
 
-            const { data, error } = await supabase.auth.signUp({
+            const { data, error } = await supabaseClient.auth.signUp({
                 email,
                 password,
                 options: { data: { username, role } }
@@ -867,7 +866,7 @@
             }
 
             if (data.user) {
-                await supabase.from('profiles').insert([{
+                await supabaseClient.from('profiles').insert([{
                     id: data.user.id,
                     username,
                     role
@@ -882,7 +881,7 @@
             const tbody = document.getElementById('users-table-body');
             tbody.innerHTML = '';
 
-            const { data: profiles } = await supabase.from('profiles').select('*');
+            const { data: profiles } = await supabaseClient.from('profiles').select('*');
             (profiles || []).forEach(u => {
                 tbody.innerHTML += `<tr><td><strong>${u.username}</strong></td><td>${u.role === 'admin' ? 'Gestor' : 'Padrão'}</td></tr>`;
             });
