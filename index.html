@@ -414,15 +414,14 @@
 
             <p style="margin-bottom: 25px; color: var(--text-muted); font-size: 0.9rem;">Sistema de Prestação de Contas</p>
 
-            <form id="login-form" onsubmit="return false;">
+            <form id="login-form">
                 <div class="form-group">
-                    <input type="email" id="login-user" placeholder="E-mail cadastrado" required>
+                    <input type="text" id="login-user" placeholder="E-mail cadastrado (ex: admin@hotmail.com)" required>
                 </div>
                 <div class="form-group">
                     <input type="password" id="login-pass" placeholder="Senha" required>
                 </div>
-                <!-- Botão alterado para do tipo button para impedir o recarregamento do formulário -->
-                <button type="button" id="btn-login-submit" onclick="handleLogin()" class="btn-primary" style="width: 100%;">Entrar no Sistema</button>
+                <button type="submit" id="btn-login-submit" class="btn-primary" style="width: 100%;">Entrar no Sistema</button>
             </form>
             <p id="login-error" class="hidden"></p>
         </div>
@@ -561,25 +560,19 @@
     </div>
 
     <script>
-        // =========================================================================
-        // CONFIGURAÇÕES DO SUPABASE (COLE AS SUAS CREDENCIAIS REAIS AQUI)
-        // =========================================================================
+        // CONFIGURAÇÕES DO SUPABASE - PREENCHA COM SUAS CHAVES REAIS
         const SUPABASE_URL = 'https://lhcysivcgllpayoqover.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_5XxUgZqEtPXsKJhkeXqT0w_Ap2MBxUw';
-        // =========================================================================
 
         let supabase = null;
 
-        // Inicialização com Verificação
         try {
             if (window.supabase) {
                 const { createClient } = window.supabase;
                 supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            } else {
-                console.error('Biblioteca do Supabase não carregou do CDN.');
             }
         } catch (err) {
-            console.error('Erro ao inicializar cliente Supabase:', err);
+            console.error('Erro ao conectar ao Supabase:', err);
         }
 
         let currentUser = null;
@@ -589,27 +582,31 @@
         // DOM Elements
         const loginScreen = document.getElementById('login-screen');
         const appScreen = document.getElementById('app');
+        const loginForm = document.getElementById('login-form');
         const loginError = document.getElementById('login-error');
         const btnLoginSubmit = document.getElementById('btn-login-submit');
         const displayUserName = document.getElementById('display-user-name');
         const menuNav = document.getElementById('menu-nav');
         const btnLogout = document.getElementById('btn-logout');
 
-        // Função do Login via Ação do Botão (Sem Submit do Form)
-        async function handleLogin() {
+        // Evento do Formulário de Login
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
             const emailInput = document.getElementById('login-user');
             const passInput = document.getElementById('login-pass');
 
             const email = emailInput.value.trim();
             const password = passInput.value;
 
-            if (!email || !password) {
-                showLoginError('Por favor, preencha o e-mail e a senha.');
+            // Validação simples de formato de e-mail
+            if (!email.includes('@') || !email.includes('.')) {
+                showLoginError('Por favor, digite um e-mail válido com "@" e ".". Exemplo: admin@hotmail.com');
                 return;
             }
 
-            if (!supabase) {
-                showLoginError('Erro: O cliente do Supabase não foi carregado corretamente. Verifique sua conexão.');
+            if (SUPABASE_ANON_KEY.includes('SUA_CHAVE_ANON_PUBLIC')) {
+                showLoginError('Atenção: Você precisa colar sua chave ANON PUBLIC do Supabase na linha 255 do código!');
                 return;
             }
 
@@ -618,11 +615,9 @@
             loginError.classList.add('hidden');
 
             try {
-                console.log('Tentando login com:', email);
                 const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
                 if (error) {
-                    console.error('Erro retornado pelo Supabase:', error);
                     if (error.message.includes('Invalid login credentials')) {
                         showLoginError('E-mail ou senha incorretos.');
                     } else if (error.message.includes('Email not confirmed')) {
@@ -633,22 +628,17 @@
                     return;
                 }
 
-                console.log('Login efetuado com sucesso:', data.user);
                 currentUser = data.user;
                 await loadUserProfile();
-                
-                emailInput.value = '';
-                passInput.value = '';
-                
+                loginForm.reset();
                 initApp();
             } catch (err) {
-                console.error('Exceção capturada no login:', err);
-                showLoginError(`Erro de Conexão/Execução: ${err.message || err}`);
+                showLoginError('Erro ao comunicar com o Supabase. Verifique a chave configurada no código.');
             } finally {
                 btnLoginSubmit.disabled = false;
                 btnLoginSubmit.innerText = 'Entrar no Sistema';
             }
-        }
+        });
 
         function showLoginError(msg) {
             loginError.innerText = msg;
@@ -665,17 +655,14 @@
 
         async function loadUserProfile() {
             try {
-                const { data, error } = await supabase
+                const { data } = await supabase
                     .from('profiles')
                     .select('*')
                     .eq('id', currentUser.id)
                     .maybeSingle();
 
-                if (error) console.error('Erro ao buscar perfil:', error);
-
                 userProfile = data || { username: currentUser.email, role: 'user' };
             } catch (e) {
-                console.error('Falha na consulta de perfil:', e);
                 userProfile = { username: currentUser.email, role: 'user' };
             }
         }
@@ -773,24 +760,20 @@
             userHistoryContainer.innerHTML = '';
 
             if (userProfile.role === 'user') {
-                const { data: myExpenses, error } = await supabase
+                const { data: myExpenses } = await supabase
                     .from('expenses')
                     .select('*')
                     .eq('user_id', currentUser.id)
                     .order('created_at', { ascending: false });
 
-                if (error) console.error('Erro despesas:', error);
-
                 (myExpenses || []).forEach(exp => {
                     userHistoryContainer.innerHTML += createCardHTML(exp);
                 });
             } else {
-                const { data: allExpenses, error } = await supabase
+                const { data: allExpenses } = await supabase
                     .from('expenses')
                     .select('*')
                     .order('created_at', { ascending: false });
-
-                if (error) console.error('Erro todas despesas:', error);
 
                 allReceivedExpenses = allExpenses || [];
                 displayAdminExpenses(allReceivedExpenses);
@@ -874,9 +857,7 @@
             const tbody = document.getElementById('users-table-body');
             tbody.innerHTML = '';
 
-            const { data: profiles, error } = await supabase.from('profiles').select('*');
-            if (error) console.error('Erro ao buscar usuários:', error);
-
+            const { data: profiles } = await supabase.from('profiles').select('*');
             (profiles || []).forEach(u => {
                 tbody.innerHTML += `<tr><td><strong>${u.username}</strong></td><td>${u.role === 'admin' ? 'Gestor' : 'Padrão'}</td></tr>`;
             });
